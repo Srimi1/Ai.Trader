@@ -12,11 +12,12 @@ def make_raw_trade(
     party="D",
 ):
     today = datetime.now()
-    tx_date = (today - timedelta(days=days_ago)).strftime("%Y-%m-%d")
-    disc_date = (today - timedelta(days=max(0, days_ago - 3))).strftime("%Y-%m-%d")
+    tx_obj = today - timedelta(days=days_ago)
+    tx_date = tx_obj.strftime("%Y-%m-%d")
+    disc_date = (tx_obj + timedelta(days=3)).strftime("%Y-%m-%d")
     return {
         "Representative": representative,
-        "BioGuideID": "P000197",
+        "BioGuideID": "TEST000001",
         "ReportDate": disc_date,
         "TransactionDate": tx_date,
         "Ticker": ticker,
@@ -44,8 +45,9 @@ def make_normalized_trade(
     source="house",
 ):
     today = datetime.now()
-    tx_date = (today - timedelta(days=days_ago)).strftime("%Y-%m-%d")
-    disc_date = (today - timedelta(days=max(0, days_ago - 3))).strftime("%Y-%m-%d")
+    tx_obj = today - timedelta(days=days_ago)
+    tx_date = tx_obj.strftime("%Y-%m-%d")
+    disc_date = (tx_obj + timedelta(days=3)).strftime("%Y-%m-%d")
     return {
         "source": source,
         "representative": representative,

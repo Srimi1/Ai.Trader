@@ -30,7 +30,8 @@ def _equity(values):
 
 class TestSharpeRatio:
     def test_positive_returns_positive_sharpe(self):
-        r = _returns([0.01] * 252)
+        # varied positive returns (std > 0)
+        r = _returns([0.01, 0.02, 0.005, 0.015, 0.008] * 50)
         assert sharpe_ratio(r) > 0
 
     def test_flat_returns_zero(self):
@@ -38,7 +39,8 @@ class TestSharpeRatio:
         assert sharpe_ratio(r) == 0.0
 
     def test_negative_returns_negative_sharpe(self):
-        r = _returns([-0.01] * 252)
+        # varied negative returns (std > 0)
+        r = _returns([-0.01, -0.02, -0.005, -0.015, -0.008] * 50)
         assert sharpe_ratio(r) < 0
 
 
@@ -91,9 +93,9 @@ class TestWinRate:
 
 
 class TestProfitFactor:
-    def test_only_wins_returns_zero(self):
-        # No losses → gross_lost = 0 → returns 0.0
-        assert profit_factor(_returns([0.01, 0.02])) == 0.0
+    def test_only_wins_returns_inf(self):
+        import math
+        assert math.isinf(profit_factor(_returns([0.01, 0.02])))
 
     def test_only_losses_returns_zero(self):
         assert profit_factor(_returns([-0.01, -0.02])) == 0.0

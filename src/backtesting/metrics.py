@@ -43,7 +43,9 @@ def profit_factor(trade_returns: pd.Series) -> float:
     """Gross profit / gross loss."""
     gross_won = trade_returns[trade_returns > 0].sum()
     gross_lost = abs(trade_returns[trade_returns < 0].sum())
-    return float(gross_won / gross_lost) if gross_lost != 0 else 0.0
+    if gross_lost != 0:
+        return float(gross_won / gross_lost)
+    return float("inf") if gross_won > 0 else 0.0
 
 
 def alpha_beta(portfolio_returns: pd.Series, benchmark_returns: pd.Series) -> tuple[float, float]:
@@ -54,7 +56,7 @@ def alpha_beta(portfolio_returns: pd.Series, benchmark_returns: pd.Series) -> tu
     pr = aligned.iloc[:, 0]
     br = aligned.iloc[:, 1]
     cov = np.cov(pr, br)[0, 1]
-    var = np.var(br)
+    var = np.var(br, ddof=1)  # match ddof with np.cov
     beta = float(cov / var) if var != 0 else 0.0
     alpha = float(pr.mean() - beta * br.mean()) * 252
     return alpha, beta
