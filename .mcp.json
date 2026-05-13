@@ -1,9 +1,8 @@
 {
   "mcpServers": {
     "financial-datasets": {
-      "command": "/Volumes/Srimi Drive 1/AI.Trader/.venv-mcp/bin/python3",
+      "command": ".venv-mcp/bin/python3",
       "args": ["-m", "src.mcp.financial_datasets"],
-      "cwd": "/Volumes/Srimi Drive 1/AI.Trader",
       "env": {
         "FINANCIAL_DATASETS_API_KEY": "${FINANCIAL_DATASETS_API_KEY}"
       }
