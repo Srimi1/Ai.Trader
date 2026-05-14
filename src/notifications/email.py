@@ -174,9 +174,6 @@ def send_signal_alert(
     try:
         # Use Gmail MCP (available in Claude Code session)
         # This is called from orchestrator which runs inside Claude Code
-        from anthropic import Anthropic
-        # Direct Gmail MCP call — works when running inside Claude Code
-        import subprocess, json as _json
         # Fallback: write to notification queue file that Claude Code picks up
         _queue_notification(subject, html, ALERT_EMAIL)
         logger.info("Email queued: %s → %s", subject, ALERT_EMAIL)
@@ -216,6 +213,164 @@ def send_daily_digest(results: list) -> bool:
     html = _digest_html(results)
     _queue_notification(subject, html, ALERT_EMAIL)
     logger.info("Daily digest queued → %s", ALERT_EMAIL)
+    return True
+
+
+def send_portfolio_digest(analysis: dict, review: str = "") -> bool:
+    """
+    Queue an HTML portfolio digest email showing dangers, losses, and opportunities.
+
+    analysis keys used:
+        total_value, total_pnl, dangers (list of dicts), losses (list of dicts),
+        opportunities (list of dicts)
+    Returns True if queued.
+    """
+    dangers = analysis.get("dangers") or []
+    losses = analysis.get("losses") or []
+    opportunities = analysis.get("opportunities") or []
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    subject = (
+        f"[AI.Trader] Portfolio Alert — {now_str} | "
+        f"{len(dangers)} dangers, {len(opportunities)} opportunities"
+    )
+
+    # --- summary row ---
+    total_value = analysis.get("total_value", 0) or 0
+    total_pnl = analysis.get("total_pnl", 0) or 0
+    pnl_color = "#16a34a" if total_pnl >= 0 else "#dc2626"
+
+    # --- danger rows ---
+    danger_rows = ""
+    for d in dangers:
+        ticker = d.get("ticker", "")
+        pnl = d.get("pnl", 0) or 0
+        signal = d.get("signal", "SELL")
+        danger_rows += (
+            f"<tr>"
+            f"<td style='padding:8px 12px;font-weight:600;'>{ticker}</td>"
+            f"<td style='padding:8px 12px;color:#dc2626;font-weight:600;'>{signal}</td>"
+            f"<td style='padding:8px 12px;color:#dc2626;'>{pnl:+.2f}%</td>"
+            f"<td style='padding:8px 12px;'>{d.get('politician','')}</td>"
+            f"</tr>"
+        )
+
+    # --- loss rows ---
+    loss_rows = ""
+    for pos in losses:
+        ticker = pos.get("ticker", "")
+        pnl = pos.get("pnl", 0) or 0
+        loss_rows += (
+            f"<tr>"
+            f"<td style='padding:8px 12px;font-weight:600;'>{ticker}</td>"
+            f"<td style='padding:8px 12px;color:#dc2626;'>{pnl:+.2f}%</td>"
+            f"<td style='padding:8px 12px;'>{pos.get('entry_date','')}</td>"
+            f"</tr>"
+        )
+
+    # --- opportunity rows ---
+    opp_rows = ""
+    for opp in opportunities:
+        ticker = opp.get("ticker", "")
+        score = opp.get("score", 0) or 0
+        opp_rows += (
+            f"<tr>"
+            f"<td style='padding:8px 12px;font-weight:600;'>{ticker}</td>"
+            f"<td style='padding:8px 12px;color:#16a34a;font-weight:600;'>BUY</td>"
+            f"<td style='padding:8px 12px;'>{score:+.2f}</td>"
+            f"<td style='padding:8px 12px;'>{opp.get('politician','')}</td>"
+            f"</tr>"
+        )
+
+    danger_section = ""
+    if dangers:
+        danger_section = f"""
+<div style="border-left:4px solid #dc2626;padding-left:16px;margin-bottom:20px;">
+  <h2 style="margin:0 0 8px;font-size:16px;color:#dc2626;">Danger Signals in Portfolio</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <thead>
+      <tr style="background:#111;color:#fff;">
+        <th style="padding:8px 12px;text-align:left;">Ticker</th>
+        <th style="padding:8px 12px;text-align:left;">Signal</th>
+        <th style="padding:8px 12px;text-align:left;">P&amp;L</th>
+        <th style="padding:8px 12px;text-align:left;">Politician</th>
+      </tr>
+    </thead>
+    <tbody>{danger_rows}</tbody>
+  </table>
+</div>"""
+
+    loss_section = ""
+    if losses:
+        loss_section = f"""
+<div style="border-left:4px solid #f97316;padding-left:16px;margin-bottom:20px;">
+  <h2 style="margin:0 0 8px;font-size:16px;color:#f97316;">Loss Positions (&lt; -5%)</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <thead>
+      <tr style="background:#111;color:#fff;">
+        <th style="padding:8px 12px;text-align:left;">Ticker</th>
+        <th style="padding:8px 12px;text-align:left;">P&amp;L</th>
+        <th style="padding:8px 12px;text-align:left;">Entry Date</th>
+      </tr>
+    </thead>
+    <tbody>{loss_rows}</tbody>
+  </table>
+</div>"""
+
+    opp_section = ""
+    if opportunities:
+        opp_section = f"""
+<div style="border-left:4px solid #16a34a;padding-left:16px;margin-bottom:20px;">
+  <h2 style="margin:0 0 8px;font-size:16px;color:#16a34a;">Top Opportunities (BUY — not held)</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <thead>
+      <tr style="background:#111;color:#fff;">
+        <th style="padding:8px 12px;text-align:left;">Ticker</th>
+        <th style="padding:8px 12px;text-align:left;">Signal</th>
+        <th style="padding:8px 12px;text-align:left;">Score</th>
+        <th style="padding:8px 12px;text-align:left;">Politician</th>
+      </tr>
+    </thead>
+    <tbody>{opp_rows}</tbody>
+  </table>
+</div>"""
+
+    review_section = ""
+    if review:
+        review_section = f"""
+<div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:16px;">
+  <p style="margin:0 0 8px;font-weight:600;">Claude Portfolio Review</p>
+  <p style="margin:0;font-size:14px;line-height:1.6;color:#374151;white-space:pre-wrap;">{review}</p>
+</div>"""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:-apple-system,sans-serif;max-width:700px;margin:0 auto;padding:20px;color:#111;">
+
+<h1 style="font-size:22px;margin-bottom:4px;">AI.Trader — Portfolio Alert</h1>
+<p style="color:#666;font-size:14px;margin-bottom:20px;">{now_str}</p>
+
+<div style="background:#f9fafb;border-radius:8px;padding:16px;margin-bottom:24px;">
+  <span style="font-size:14px;">Portfolio Value: <strong>${total_value:,.2f}</strong>
+  &nbsp;|&nbsp; Total P&amp;L: <strong style="color:{pnl_color};">{total_pnl:+,.2f}</strong></span>
+</div>
+
+{danger_section}
+{loss_section}
+{opp_section}
+{review_section}
+
+<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+<p style="font-size:12px;color:#9ca3af;margin:0;">
+  AI.Trader — Portfolio Digest &nbsp;|&nbsp; {now_str} &nbsp;|&nbsp;
+  Not financial advice. Paper trading mode.
+</p>
+</body>
+</html>"""
+
+    _queue_notification(subject, html, ALERT_EMAIL)
+    logger.info("Portfolio digest queued → %s (%d dangers, %d opps)", ALERT_EMAIL, len(dangers), len(opportunities))
     return True
 
 

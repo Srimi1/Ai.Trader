@@ -47,7 +47,7 @@ def _close_expired_positions(hold_days: int = 30) -> None:
     """Close any paper positions that have been held longer than hold_days."""
     try:
         from src.portfolio.journal import Journal
-        from src.execution.alpaca_broker import get_positions, close_position, get_current_price
+        from src.execution.alpaca_broker import close_position, get_current_price
 
         journal = Journal()
         open_trades = journal.get_open_trades()
@@ -89,6 +89,8 @@ def main() -> None:
     parser.add_argument("--status", action="store_true", help="Show portfolio status and exit")
     parser.add_argument("--no-email", action="store_true", help="Skip email notifications")
     parser.add_argument("--send-emails", action="store_true", help="Flush pending email queue (run from Claude Code)")
+    parser.add_argument("--portfolio", action="store_true", help="Cross-reference holdings vs signals")
+    parser.add_argument("--no-claude", action="store_true", help="Skip Claude call in portfolio mode")
     args = parser.parse_args()
 
     console.rule(f"[bold cyan]AI.Trader Daily Run — {datetime.now().strftime('%Y-%m-%d %H:%M')}[/bold cyan]")
@@ -105,6 +107,24 @@ def main() -> None:
         _close_expired_positions(hold_days=args.hold_days)
         from src.monitoring.status import print_status
         print_status()
+        return
+
+    # Portfolio analysis mode
+    if args.portfolio:
+        logger.info("Running portfolio analysis...")
+        try:
+            from src.agents.portfolio_analyzer import analyze_portfolio, print_analysis, get_claude_portfolio_review
+            analysis = analyze_portfolio(days=args.days)
+            print_analysis(analysis)
+            if not args.no_claude:
+                review = get_claude_portfolio_review(analysis)
+                console.print(f"\n[bold cyan]Claude Portfolio Review:[/bold cyan]\n{review}")
+            # Email if any holdings have signals
+            if analysis.get("signals_in_portfolio") or analysis.get("dangers"):
+                from src.notifications.email import send_portfolio_digest
+                send_portfolio_digest(analysis, review if not args.no_claude else "")
+        except Exception as e:
+            console.print(f"[red]Portfolio analysis failed: {e}[/red]")
         return
 
     # Flush pending email queue (call from Claude Code to actually send via Gmail MCP)
