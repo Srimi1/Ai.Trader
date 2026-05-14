@@ -7,9 +7,38 @@ Deploy via:
 Requires lean CLI + Docker. Place this file in a LEAN project created with:
   lean create-project PoliticalTradesStrategy
 """
-# This runs inside the LEAN engine runtime (not standard Python).
-# The AlgorithmImports below are provided by LEAN's execution environment.
-from AlgorithmImports import *  # noqa: F403  (LEAN runtime import)
+# AlgorithmImports is provided by LEAN's Docker runtime environment.
+# The lean CLI installs an empty stub; we detect that and provide fallbacks
+# so the module can be imported outside of LEAN without crashing.
+try:
+    from AlgorithmImports import *  # noqa: F403
+    QCAlgorithm  # raises NameError if stub is empty
+except (ImportError, NameError):
+    # Fallback stubs — strategy logic is inert outside LEAN runtime
+    class QCAlgorithm:  # noqa: N801
+        def SetStartDate(self, *a): pass
+        def SetEndDate(self, *a): pass
+        def SetCash(self, *a): pass
+        def SetBrokerageModel(self, *a): pass
+        def SetBenchmark(self, *a): pass
+        def AddEquity(self, *a, **kw): return type("Sym", (), {"Symbol": a[0]})()
+        def SetHoldings(self, *a): pass
+        def Liquidate(self, *a): pass
+        def Log(self, msg): pass
+        @property
+        def Time(self): return __import__("datetime").datetime.now()
+        @property
+        def DataFolder(self): return "."
+        @property
+        def Portfolio(self): return type("P", (), {"TotalPortfolioValue": 0})()
+    class BrokerageName:  # noqa: N801
+        InteractiveBrokers = None
+    class AccountType:  # noqa: N801
+        Margin = None
+    class Resolution:  # noqa: N801
+        Daily = None
+    class Slice:  # noqa: N801
+        pass
 
 import json
 from pathlib import Path
