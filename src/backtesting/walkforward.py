@@ -1,9 +1,7 @@
 """Walk-forward validation — rolling train/test windows."""
 from datetime import datetime, timedelta
 
-import pandas as pd
-
-from src.backtesting.engine import BacktestEngine, BacktestMetrics
+from src.backtesting.engine import BacktestEngine
 
 
 def _valid_date(date_str: str) -> bool:

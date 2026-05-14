@@ -137,5 +137,5 @@ if __name__ == "__main__":
     t = sys.argv[1] if len(sys.argv) > 1 else "NVDA"
     print(f"\nX Sentiment for {t}:")
     print(get_x_sentiment(t))
-    print(f"\nMarket Narrative:")
+    print("\nMarket Narrative:")
     print(get_market_narrative(t))

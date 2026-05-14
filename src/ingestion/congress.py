@@ -13,7 +13,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
+
 
 import requests
 from dotenv import load_dotenv
@@ -92,7 +92,6 @@ def _load_cache() -> list:
 
 
 def _save_cache(data: list) -> None:
-    import tempfile
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     tmp = CACHE_PATH.with_suffix(".tmp")
     try:

@@ -1,5 +1,5 @@
 """Backtrader adapter — event-driven, flexible, secondary engine."""
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 import backtrader as bt

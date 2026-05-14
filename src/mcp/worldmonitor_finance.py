@@ -21,7 +21,8 @@ import logging
 import sys
 import time
 import warnings
-from datetime import datetime, timedelta
+import asyncio
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -382,7 +383,6 @@ async def get_economic_indicators() -> str:
         market_regime = "extreme fear — significant market stress"
 
     yield_val = macro.get("yield_10y", {}).get("value")
-    oil_val = macro.get("oil_wti", {}).get("value")
     oil_chg = macro.get("oil_wti", {}).get("change_1d_pct")
 
     oil_context = ""

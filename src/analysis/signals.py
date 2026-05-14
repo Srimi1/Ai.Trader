@@ -1,7 +1,7 @@
 """Score STOCK Act disclosures using committee weight, amount, recency, and cluster bonus."""
 import json
 import math
-from collections import Counter
+
 from datetime import datetime, timedelta
 from pathlib import Path
 

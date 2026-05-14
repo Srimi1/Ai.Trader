@@ -1,6 +1,6 @@
 """Fetch news headlines via Alpha Vantage News API."""
 import os
-from datetime import datetime, timedelta
+
 from pathlib import Path
 
 import requests
