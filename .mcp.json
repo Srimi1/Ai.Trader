@@ -1,5 +1,17 @@
 {
   "mcpServers": {
+    "quiverquant": {
+      "command": ".venv-mcp/bin/python3",
+      "args": ["-m", "src.mcp.quiverquant_server"],
+      "env": {
+        "QUIVER_QUANT_KEY": "${QUIVER_QUANT_KEY}"
+      }
+    },
+    "worldmonitor-finance": {
+      "command": ".venv-mcp/bin/python3",
+      "args": ["-m", "src.mcp.worldmonitor_finance"],
+      "cwd": "/Volumes/Srimi Drive 1/AI.Trader"
+    },
     "financial-datasets": {
       "command": ".venv-mcp/bin/python3",
       "args": ["-m", "src.mcp.financial_datasets"],
