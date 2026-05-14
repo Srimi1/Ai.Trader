@@ -189,7 +189,26 @@ def run(
             except Exception:
                 pass
 
-        result = get_recommendation(trade, wm_context=wm_ctx, fundamentals=fundamentals, technicals=technicals)
+        # Phase 6: Grok X/social intelligence — politician X activity + sentiment themes
+        grok_context = ""
+        if not dry_run:
+            try:
+                from src.ingestion.xsocial import get_politician_x_activity, _KEY as _grok_key
+                if _grok_key:
+                    politician = trade.get("representative", "")
+                    x_activity = get_politician_x_activity(politician, ticker)
+                    themes = trade.get("sentiment", {}).get("themes", [])
+                    grok_context = f"\nX/Social Intelligence ({ticker}):"
+                    if themes:
+                        grok_context += f"\n  Key X Themes: {', '.join(themes)}"
+                    if x_activity:
+                        grok_context += f"\n  Politician X Activity: {x_activity}"
+                    grok_context += "\n"
+                    console.print(f"      [dim]{ticker}: Grok X intelligence loaded[/dim]")
+            except Exception:
+                pass
+
+        result = get_recommendation(trade, wm_context=wm_ctx, fundamentals=fundamentals, technicals=technicals, grok_context=grok_context)
         parsed = parse_recommendation(result["raw"])
 
         rec = parsed.get("RECOMMENDATION", "HOLD")

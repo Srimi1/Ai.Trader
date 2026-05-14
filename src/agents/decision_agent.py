@@ -38,7 +38,8 @@ Inputs you will receive per trade:
 - Signal score + score components (politician weight, amount weight, recency weight, cluster bonus)
 - News sentiment (label, score, article count)
 - WorldMonitor Finance geopolitical + market context (when available)
-- Fundamental data: income statement, balance sheet, recent SEC filings (when available)"""
+- Fundamental data: income statement, balance sheet, recent SEC filings (when available)
+- X/Social Intelligence: real-time X sentiment + politician X activity (when available)"""
 
 LYNCH_PITCH_PROMPT = """You are writing a Lynch-style investment pitch for {ticker}.
 
@@ -89,12 +90,13 @@ def _fetch_wm_context(ticker: str) -> dict:
         return {}
 
 
-def get_recommendation(trade: dict, wm_context: dict = None, fundamentals: str = "", technicals: str = "") -> dict:
+def get_recommendation(trade: dict, wm_context: dict = None, fundamentals: str = "", technicals: str = "", grok_context: str = "") -> dict:
     """
     Args:
         trade: Enriched trade dict from the pipeline.
         wm_context: Pre-fetched WorldMonitor context dict (optional).
         fundamentals: Pre-fetched fundamentals block from get_fundamentals_context() (optional).
+        grok_context: Pre-fetched X/social intelligence block from xsocial.py (optional).
     """
     client = anthropic.Anthropic(api_key=_API_KEY)
 
@@ -146,8 +148,7 @@ Score Components:
   - Cluster bonus: {components.get('cluster', 1.0):.2f}
 
 News Sentiment: {sentiment.get('label', 'Unknown')} (score={sentiment.get('score', 0):.3f}, n={sentiment.get('articles', 0)} articles, source={sentiment.get('source', 'unknown')})
-{geo_block}{market_block}{technicals}{fundamentals}
-
+{geo_block}{market_block}{technicals}{fundamentals}{grok_context}
 Provide your recommendation."""
 
     try:

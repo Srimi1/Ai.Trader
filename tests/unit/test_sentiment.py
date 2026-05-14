@@ -11,10 +11,11 @@ from tests.fixtures.sample_trades import SAMPLE_NORMALIZED_TRADES
 
 
 class TestGetSentimentMultiplier:
-    # sentiment.py now imports get_average_sentiment lazily inside the function.
-    # Mock at src.ingestion.news and block the Massive/Polygon path (no key set).
+    # sentiment.py now imports lazily inside the function.
+    # Block Grok (Tier 0), Massive (Tier 1) — test only Alpha Vantage (Tier 2) path.
     @patch("src.ingestion.news.get_average_sentiment")
     @patch("src.ingestion.massive._KEY", "")
+    @patch("src.ingestion.xsocial._KEY", "")
     def test_bullish_returns_1_5(self, mock_sent):
         mock_sent.return_value = {"label": "Bullish", "score": 0.4, "articles": 15}
         result = get_sentiment_multiplier("NVDA")
@@ -23,6 +24,7 @@ class TestGetSentimentMultiplier:
 
     @patch("src.ingestion.news.get_average_sentiment")
     @patch("src.ingestion.massive._KEY", "")
+    @patch("src.ingestion.xsocial._KEY", "")
     def test_bearish_returns_0_5(self, mock_sent):
         mock_sent.return_value = {"label": "Bearish", "score": -0.4, "articles": 10}
         result = get_sentiment_multiplier("NVDA")
@@ -30,6 +32,7 @@ class TestGetSentimentMultiplier:
 
     @patch("src.ingestion.news.get_average_sentiment")
     @patch("src.ingestion.massive._KEY", "")
+    @patch("src.ingestion.xsocial._KEY", "")
     def test_neutral_returns_1_0(self, mock_sent):
         mock_sent.return_value = {"label": "Neutral", "score": 0.0, "articles": 5}
         result = get_sentiment_multiplier("NVDA")
@@ -37,6 +40,7 @@ class TestGetSentimentMultiplier:
 
     @patch("src.ingestion.news.get_average_sentiment")
     @patch("src.ingestion.massive._KEY", "")
+    @patch("src.ingestion.xsocial._KEY", "")
     def test_api_failure_returns_fallback(self, mock_sent):
         mock_sent.side_effect = Exception("API down")
         result = get_sentiment_multiplier("NVDA")
@@ -44,6 +48,19 @@ class TestGetSentimentMultiplier:
         assert result["label"] == "Neutral"
         assert result["source"] == "fallback"
         assert "error" in result
+
+    @patch("src.ingestion.xsocial.get_x_sentiment")
+    @patch("src.ingestion.xsocial._KEY", "xai-test")
+    @patch("src.ingestion.massive._KEY", "")
+    def test_grok_tier0_used_when_key_set(self, mock_grok):
+        mock_grok.return_value = {
+            "label": "Bullish", "score": 0.82, "articles": 25,
+            "source": "grok_x", "themes": ["AI rally"],
+        }
+        result = get_sentiment_multiplier("NVDA")
+        assert result["source"] == "grok_x"
+        assert result["multiplier"] == 1.5
+        assert result["themes"] == ["AI rally"]
 
     def test_all_labels_covered(self):
         for label in SENTIMENT_MULTIPLIERS:

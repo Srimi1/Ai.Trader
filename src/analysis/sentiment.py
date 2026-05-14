@@ -2,6 +2,7 @@
 News sentiment layer.
 
 Source priority:
+  0. Grok/X (xAI) — real-time X/Twitter, unlimited              [GROK_API_KEY]
   1. Massive (Polygon.io) — unlimited free calls, no rate limit  [POLYGON_API_KEY]
   2. Alpha Vantage — 25 calls/day fallback                        [ALPHA_VANTAGE_KEY]
   3. Neutral fallback — pipeline never crashes
@@ -22,6 +23,24 @@ SENTIMENT_MULTIPLIERS = {
 
 
 def get_sentiment_multiplier(ticker: str) -> dict:
+    # 0. Try Grok/X (real-time X/Twitter, unlimited calls)
+    try:
+        from src.ingestion.xsocial import get_x_sentiment, _KEY as _grok_key
+        if _grok_key:
+            result = get_x_sentiment(ticker)
+            label = result["label"]
+            return {
+                "ticker": ticker,
+                "label": label,
+                "score": result["score"],
+                "multiplier": SENTIMENT_MULTIPLIERS.get(label, 1.0),
+                "articles": result["articles"],
+                "source": "grok_x",
+                "themes": result.get("themes", []),
+            }
+    except Exception:
+        pass
+
     # 1. Try Massive/Polygon (unlimited free, no rate limit)
     try:
         from src.ingestion.massive import get_news_sentiment, _KEY as _polygon_key
