@@ -106,8 +106,9 @@ class PyBrokerAdapter(BacktestEngine):
                     benchmark_ret = float((close_vals.iloc[-1] / close_vals.iloc[0]) - 1)
                 else:
                     benchmark_ret = float((close_vals[-1] / close_vals[0]) - 1)
-        except Exception:
-            pass
+        except Exception as _bench_err:
+            import logging
+            logging.getLogger(__name__).warning("SPY benchmark fetch failed: %s", _bench_err)
 
         excess = total_ret - benchmark_ret
 

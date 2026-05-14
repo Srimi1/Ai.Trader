@@ -11,7 +11,14 @@ load_dotenv(Path(__file__).parents[2] / ".env")
 AV_BASE = "https://www.alphavantage.co/query"
 
 
-def get_news(ticker: str, limit: int = 10) -> list[dict]:
+def _safe_float(value, default: float = 0.0) -> float:
+    try:
+        return float(value) if value not in (None, "", "None") else default
+    except (ValueError, TypeError):
+        return default
+
+
+def get_news(ticker: str, limit: int = 10) -> list:
     api_key = os.getenv("ALPHA_VANTAGE_KEY")
     if not api_key:
         raise EnvironmentError("ALPHA_VANTAGE_KEY not set in .env")
@@ -27,6 +34,11 @@ def get_news(ticker: str, limit: int = 10) -> list[dict]:
     resp.raise_for_status()
     data = resp.json()
 
+    # Alpha Vantage rate-limit or error response
+    if "Note" in data or "Information" in data:
+        msg = data.get("Note") or data.get("Information", "")
+        raise RuntimeError(f"Alpha Vantage API limit/error: {msg}")
+
     articles = data.get("feed", [])
     results = []
     for a in articles:
@@ -40,9 +52,9 @@ def get_news(ticker: str, limit: int = 10) -> list[dict]:
             "published": a.get("time_published", ""),
             "source": a.get("source", ""),
             "overall_sentiment": a.get("overall_sentiment_label", "Neutral"),
-            "overall_score": float(a.get("overall_sentiment_score", 0)),
+            "overall_score": _safe_float(a.get("overall_sentiment_score")),
             "ticker_sentiment": ticker_sentiment.get("ticker_sentiment_label", "Neutral"),
-            "ticker_score": float(ticker_sentiment.get("ticker_sentiment_score", 0)),
+            "ticker_score": _safe_float(ticker_sentiment.get("ticker_sentiment_score")),
         })
     return results
 

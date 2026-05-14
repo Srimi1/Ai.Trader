@@ -9,8 +9,10 @@ MAX_DISCLOSURE_LAG_DAYS = 45
 
 def _disclosure_lag(trade: dict) -> int:
     try:
-        tx = datetime.strptime(trade["transaction_date"][:10], "%Y-%m-%d")
-        disc = datetime.strptime(trade.get("disclosure_date", trade["transaction_date"])[:10], "%Y-%m-%d")
+        tx_str = trade.get("transaction_date") or ""
+        disc_str = trade.get("disclosure_date") or tx_str
+        tx = datetime.strptime(tx_str[:10], "%Y-%m-%d")
+        disc = datetime.strptime(disc_str[:10], "%Y-%m-%d")
         return (disc - tx).days
     except ValueError:
         return 0

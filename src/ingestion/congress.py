@@ -84,14 +84,24 @@ def _cache_fresh() -> bool:
 
 
 def _load_cache() -> list:
-    with open(CACHE_PATH) as f:
-        return json.load(f)
+    try:
+        with open(CACHE_PATH) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
 
 
 def _save_cache(data: list) -> None:
+    import tempfile
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(CACHE_PATH, "w") as f:
-        json.dump(data, f)
+    tmp = CACHE_PATH.with_suffix(".tmp")
+    try:
+        with open(tmp, "w") as f:
+            json.dump(data, f)
+        tmp.replace(CACHE_PATH)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 # ── Quiver Quant fetch ────────────────────────────────────────────────────────

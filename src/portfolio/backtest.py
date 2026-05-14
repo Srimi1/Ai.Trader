@@ -41,7 +41,18 @@ def run_backtest() -> None:
         print(f"LEAN project not found at {LEAN_PROJECT}")
         print("Create it first: lean create-project PoliticalTradesStrategy")
         return
-    subprocess.run(["lean", "backtest", "PoliticalTradesStrategy"], check=True)
+    try:
+        result = subprocess.run(
+            ["lean", "backtest", "PoliticalTradesStrategy"],
+            check=True, capture_output=True, text=True,
+        )
+        if result.stdout:
+            print(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"LEAN backtest failed (exit {e.returncode}):\n{e.stderr or ''}")
+        raise
+    except FileNotFoundError:
+        raise FileNotFoundError("'lean' CLI not found — install: pip install lean-cli")
 
 
 if __name__ == "__main__":

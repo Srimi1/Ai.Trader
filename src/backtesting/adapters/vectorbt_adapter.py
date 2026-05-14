@@ -81,10 +81,13 @@ class VectorBTAdapter(BacktestEngine):
                 continue
             entry_idx = idx[mask][0]
 
-            # Find exit date (hold_days after entry)
-            entry_loc = idx.get_loc(entry_idx)
-            exit_loc = min(entry_loc + self._hold_days, len(idx) - 1)
-            exit_idx = idx[exit_loc]
+            # Find exit date (hold_days after entry); deduplicate index to avoid get_loc ambiguity
+            unique_idx = idx[~idx.duplicated()]
+            if entry_idx not in unique_idx:
+                continue
+            entry_loc = unique_idx.get_loc(entry_idx)
+            exit_loc = min(entry_loc + self._hold_days, len(unique_idx) - 1)
+            exit_idx = unique_idx[exit_loc]
 
             if sig.get("final_signal") == "BUY":
                 entries.loc[entry_idx, ticker] = True

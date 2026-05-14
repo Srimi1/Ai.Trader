@@ -22,8 +22,12 @@ def sortino_ratio(returns: pd.Series, risk_free: float = 0.0) -> float:
 
 def max_drawdown(equity: pd.Series) -> float:
     """Maximum peak-to-trough drawdown as a negative decimal."""
+    if equity.empty:
+        return 0.0
     peak = equity.cummax()
-    drawdown = (equity - peak) / peak
+    zero_peak = peak == 0
+    drawdown = pd.Series(0.0, index=equity.index)
+    drawdown[~zero_peak] = (equity[~zero_peak] - peak[~zero_peak]) / peak[~zero_peak]
     return float(drawdown.min())
 
 
@@ -64,6 +68,8 @@ def alpha_beta(portfolio_returns: pd.Series, benchmark_returns: pd.Series) -> tu
 
 def annualized_volatility(returns: pd.Series) -> float:
     """Annualized standard deviation of returns."""
+    if len(returns) < 2:
+        return 0.0
     return float(returns.std() * np.sqrt(252))
 
 
@@ -71,4 +77,6 @@ def cagr(start_value: float, end_value: float, years: float) -> float:
     """Compound Annual Growth Rate."""
     if start_value <= 0 or years <= 0:
         return 0.0
+    if end_value <= 0:
+        return -1.0
     return float((end_value / start_value) ** (1 / years) - 1)

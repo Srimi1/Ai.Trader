@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import sys
+from typing import Optional
 
 import httpx
 from dotenv import load_dotenv
@@ -18,15 +19,20 @@ mcp = FastMCP("financial-datasets")
 _BASE = "https://api.financialdatasets.ai"
 
 
-async def _get(url: str) -> dict:
+async def _get(path: str, params: Optional[dict] = None) -> dict:
     headers = {}
     if key := os.environ.get("FINANCIAL_DATASETS_API_KEY"):
         headers["X-API-KEY"] = key
+    else:
+        logger.warning("FINANCIAL_DATASETS_API_KEY not set — requests will be unauthenticated")
+    url = f"{_BASE}{path}"
     async with httpx.AsyncClient() as client:
         try:
-            r = await client.get(url, headers=headers, timeout=30.0)
+            r = await client.get(url, params=params or {}, headers=headers, timeout=30.0)
             r.raise_for_status()
             return r.json()
+        except httpx.HTTPStatusError as e:
+            return {"error": f"HTTP {e.response.status_code}: {e.response.text[:200]}"}
         except Exception as e:
             return {"error": str(e)}
 
@@ -40,7 +46,7 @@ async def get_income_statements(ticker: str, period: str = "annual", limit: int 
         period: annual | quarterly | ttm
         limit: number of periods to return (default 4)
     """
-    data = await _get(f"{_BASE}/financials/income-statements/?ticker={ticker}&period={period}&limit={limit}")
+    data = await _get("/financials/income-statements/", {"ticker": ticker, "period": period, "limit": limit})
     rows = data.get("income_statements", [])
     return json.dumps(rows, indent=2) if rows else "No income statements found."
 
@@ -54,7 +60,7 @@ async def get_balance_sheets(ticker: str, period: str = "annual", limit: int = 4
         period: annual | quarterly | ttm
         limit: number of periods to return (default 4)
     """
-    data = await _get(f"{_BASE}/financials/balance-sheets/?ticker={ticker}&period={period}&limit={limit}")
+    data = await _get("/financials/balance-sheets/", {"ticker": ticker, "period": period, "limit": limit})
     rows = data.get("balance_sheets", [])
     return json.dumps(rows, indent=2) if rows else "No balance sheets found."
 
@@ -68,7 +74,7 @@ async def get_cash_flow_statements(ticker: str, period: str = "annual", limit: i
         period: annual | quarterly | ttm
         limit: number of periods to return (default 4)
     """
-    data = await _get(f"{_BASE}/financials/cash-flow-statements/?ticker={ticker}&period={period}&limit={limit}")
+    data = await _get("/financials/cash-flow-statements/", {"ticker": ticker, "period": period, "limit": limit})
     rows = data.get("cash_flow_statements", [])
     return json.dumps(rows, indent=2) if rows else "No cash flow statements found."
 
@@ -80,7 +86,7 @@ async def get_current_stock_price(ticker: str) -> str:
     Args:
         ticker: Ticker symbol (e.g. AAPL, NVDA)
     """
-    data = await _get(f"{_BASE}/prices/snapshot/?ticker={ticker}")
+    data = await _get("/prices/snapshot/", {"ticker": ticker})
     snapshot = data.get("snapshot", {})
     return json.dumps(snapshot, indent=2) if snapshot else "No price data found."
 
@@ -102,12 +108,13 @@ async def get_historical_stock_prices(
         interval: minute | hour | day | week | month (default day)
         interval_multiplier: multiplier on interval (default 1)
     """
-    url = (
-        f"{_BASE}/prices/?ticker={ticker}"
-        f"&interval={interval}&interval_multiplier={interval_multiplier}"
-        f"&start_date={start_date}&end_date={end_date}"
-    )
-    data = await _get(url)
+    data = await _get("/prices/", {
+        "ticker": ticker,
+        "interval": interval,
+        "interval_multiplier": interval_multiplier,
+        "start_date": start_date,
+        "end_date": end_date,
+    })
     prices = data.get("prices", [])
     return json.dumps(prices, indent=2) if prices else "No price data found."
 
@@ -119,13 +126,13 @@ async def get_company_news(ticker: str) -> str:
     Args:
         ticker: Ticker symbol (e.g. AAPL, NVDA)
     """
-    data = await _get(f"{_BASE}/news/?ticker={ticker}")
+    data = await _get("/news/", {"ticker": ticker})
     news = data.get("news", [])
     return json.dumps(news, indent=2) if news else "No news found."
 
 
 @mcp.tool()
-async def get_sec_filings(ticker: str, limit: int = 10, filing_type: str | None = None) -> str:
+async def get_sec_filings(ticker: str, limit: int = 10, filing_type: Optional[str] = None) -> str:
     """SEC filings for a US-listed company (10-K, 10-Q, 8-K, etc.).
 
     Args:
@@ -133,10 +140,10 @@ async def get_sec_filings(ticker: str, limit: int = 10, filing_type: str | None 
         limit: number of filings to return (default 10)
         filing_type: filter by type — 10-K | 10-Q | 8-K | etc. (optional)
     """
-    url = f"{_BASE}/filings/?ticker={ticker}&limit={limit}"
+    params = {"ticker": ticker, "limit": limit}
     if filing_type:
-        url += f"&filing_type={filing_type}"
-    data = await _get(url)
+        params["filing_type"] = filing_type
+    data = await _get("/filings/", params)
     filings = data.get("filings", [])
     return json.dumps(filings, indent=2) if filings else "No SEC filings found."
 

@@ -7,17 +7,27 @@ from pathlib import Path
 
 CONFIG_PATH = Path(__file__).parents[2] / "config" / "politicians.json"
 
-with open(CONFIG_PATH) as f:
-    CONFIG = json.load(f)
+try:
+    with open(CONFIG_PATH) as f:
+        CONFIG = json.load(f)
+except FileNotFoundError:
+    raise FileNotFoundError(
+        f"politicians.json not found at {CONFIG_PATH}. "
+        "Ensure config/ directory exists before importing signals."
+    )
+except json.JSONDecodeError as e:
+    raise ValueError(f"Malformed politicians.json: {e}") from e
 
-AMOUNT_WEIGHTS = CONFIG["amount_weights"]
-COMMITTEE_WEIGHTS = CONFIG["committee_weights"]
-KNOWN_TRADERS = CONFIG["known_active_traders"]
+AMOUNT_WEIGHTS = CONFIG.get("amount_weights", {})
+COMMITTEE_WEIGHTS = CONFIG.get("committee_weights", {})
+KNOWN_TRADERS = CONFIG.get("known_active_traders", {})
 
 
 def _amount_weight(amount_range: str) -> float:
+    # normalize: "$100,001 - $250,000" → "$100,001-$250,000" to match config keys
+    normalized = amount_range.replace(" - ", "-").replace(" – ", "-")
     for key, weight in AMOUNT_WEIGHTS.items():
-        if key in amount_range:
+        if key in normalized:
             return weight
     return 0.8
 

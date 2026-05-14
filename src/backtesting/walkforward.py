@@ -6,6 +6,14 @@ import pandas as pd
 from src.backtesting.engine import BacktestEngine, BacktestMetrics
 
 
+def _valid_date(date_str: str) -> bool:
+    try:
+        datetime.strptime(date_str[:10], "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
+
 def rolling_walkforward(
     engine: BacktestEngine,
     signals: list[dict],
@@ -26,8 +34,10 @@ def rolling_walkforward(
         }
     """
     dates = sorted({
-        datetime.strptime(s["transaction_date"], "%Y-%m-%d")
-        for s in signals if s.get("transaction_date")
+        datetime.strptime(s["transaction_date"][:10], "%Y-%m-%d")
+        for s in signals
+        if s.get("transaction_date") and len(s["transaction_date"]) >= 10
+        and _valid_date(s["transaction_date"])
     })
     if not dates:
         return []
@@ -44,10 +54,10 @@ def rolling_walkforward(
         test_start = current.strftime("%Y-%m-%d")
         test_end = (current + timedelta(days=test_days)).strftime("%Y-%m-%d")
 
-        # Filter signals to test window
+        # Filter signals to OUT-OF-SAMPLE test window only (exclusive lower bound prevents leakage)
         test_signals = [
             s for s in signals
-            if train_start <= s.get("transaction_date", "") <= test_end
+            if test_start < s.get("transaction_date", "") <= test_end
         ]
 
         engine.load_signals(test_signals, hold_days=hold_days)

@@ -7,7 +7,7 @@ This directory tracks the AI.Trader project progress phase by phase.
 - Each phase is a numbered markdown document
 - Naming: `phase-NN-YYYY-MM-DD-<slug>.md`
 - Phase 0 is the foundation/research phase — already complete
-- Phase 1, 2, 3… are the build phases ahead of us
+- Phase 1, 2, 3… are the build phases
 
 ## How to Save a Phase Snapshot
 
@@ -35,10 +35,10 @@ This auto-generates the next phase document with:
 
 | Phase | Status | Focus |
 |-------|--------|-------|
-| Phase 0 | ✅ Complete | Foundation & Research — curated 30+ AI trading repositories |
-| Phase 1 | 🔜 Next | Infrastructure — data ingestion, exchange APIs, project scaffolding |
-| Phase 2 | 📋 Planned | Backtesting Engine — strategy validation framework |
-| Phase 3 | 📋 Planned | ML/RL Strategies — supervised & reinforcement learning models |
-| Phase 4 | 📋 Planned | AI Agent Layer — LLM agents for decision support |
+| Phase 0 | ✅ Complete | Foundation & Research — curated 67 AI trading repositories |
+| Phase 1 | ✅ Complete | Infrastructure — data ingestion, Political Trades AI Agent, APIs |
+| Phase 2 | ✅ Complete | Backtesting Engine — VectorBT, Backtrader, PyBroker adapters |
+| Phase 3 | ✅ Complete | WorldMonitor Integration & Backtesting Hardening |
+| Phase 4 | 📋 Planned | ML/RL Strategies — supervised & reinforcement learning models |
 | Phase 5 | 📋 Planned | Live Execution — production trading & risk management |
 | Phase 6 | 📋 Planned | Optimization & Scale — performance tuning, multi-asset expansion |

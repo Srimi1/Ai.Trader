@@ -13,10 +13,10 @@
       "cwd": "/Volumes/Srimi Drive 1/AI.Trader"
     },
     "financial-datasets": {
-      "command": ".venv-mcp/bin/python3",
-      "args": ["-m", "src.mcp.financial_datasets"],
-      "env": {
-        "FINANCIAL_DATASETS_API_KEY": "${FINANCIAL_DATASETS_API_KEY}"
+      "type": "http",
+      "url": "https://mcp.financialdatasets.ai/",
+      "headers": {
+        "X-API-KEY": "${FINANCIAL_DATASETS_API_KEY}"
       }
     },
     "claude-flow": {

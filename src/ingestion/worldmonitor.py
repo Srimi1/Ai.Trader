@@ -29,45 +29,62 @@ _DATA = _WM_ROOT / "data"
 
 # ── static data loaders ───────────────────────────────────────────────────────
 
+def _load_json(path: Path, key: str) -> list:
+    """Load a JSON file and return the list at `key`. Returns [] if file missing or malformed."""
+    try:
+        with open(path) as f:
+            return json.load(f).get(key, [])
+    except FileNotFoundError:
+        warnings.warn(
+            f"WorldMonitor data file not found: {path}. "
+            "Run: git clone https://github.com/worldmonitor/worldmonitor.git",
+            stacklevel=3,
+        )
+        return []
+    except json.JSONDecodeError as e:
+        warnings.warn(f"WorldMonitor malformed JSON in {path}: {e}", stacklevel=3)
+        return []
+
+
 def load_stock_symbols() -> list:
     """Return worldmonitor's curated global stock list."""
-    with open(_SHARED / "stocks.json") as f:
-        data = json.load(f)
-    return data.get("symbols", [])
+    return _load_json(_SHARED / "stocks.json", "symbols")
 
 
 def load_us_stock_symbols() -> list:
     """US-only stocks (no exchange suffix, no index tickers)."""
     return [
         s for s in load_stock_symbols()
-        if "." not in s["symbol"] and not s["symbol"].startswith("^")
+        if "." not in s.get("symbol", "") and not s.get("symbol", "").startswith("^")
     ]
 
 
 def load_commodity_symbols() -> list:
     """Return worldmonitor's commodity + FX symbol list."""
-    with open(_SHARED / "commodities.json") as f:
-        data = json.load(f)
-    return data.get("commodities", [])
+    return _load_json(_SHARED / "commodities.json", "commodities")
 
 
 def load_sector_etfs() -> list:
     """Return the 12 sector ETF symbols worldmonitor tracks."""
-    with open(_SHARED / "sectors.json") as f:
-        data = json.load(f)
-    return data.get("sectors", [])
+    return _load_json(_SHARED / "sectors.json", "sectors")
 
 
 def load_entity_graph() -> dict:
     """Return geopolitical entity graph: aliases, nodes, edges."""
-    with open(_DATA / "entity-graph.json") as f:
-        return json.load(f)
+    try:
+        with open(_DATA / "entity-graph.json") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"aliases": {}, "nodes": {}, "edges": {}}
 
 
 def load_rss_domains() -> list:
     """Return 295 curated news domains from worldmonitor."""
-    with open(_SHARED / "rss-allowed-domains.json") as f:
-        return json.load(f)
+    try:
+        with open(_SHARED / "rss-allowed-domains.json") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
 
 
 # ── live macro snapshot ───────────────────────────────────────────────────────

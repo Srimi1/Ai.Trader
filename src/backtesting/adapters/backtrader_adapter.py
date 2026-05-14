@@ -26,7 +26,10 @@ class _SignalStrategy(bt.Strategy):
         today = self.datas[0].datetime.date(0)
         for ticker, sigs in self._signal_map.items():
             for sig in sigs:
-                tx_date = datetime.strptime(sig["transaction_date"], "%Y-%m-%d").date()
+                try:
+                    tx_date = datetime.strptime(sig["transaction_date"][:10], "%Y-%m-%d").date()
+                except (ValueError, KeyError):
+                    continue
                 if today == tx_date:
                     data = self.getdatabyname(ticker)
                     if sig.get("final_signal") == "BUY":
@@ -131,7 +134,9 @@ class BacktraderAdapter(BacktestEngine):
                     volume="volume",
                 )
                 cerebro.adddata(data, name=ticker)
-            except Exception:
+            except Exception as _feed_err:
+                import logging
+                logging.getLogger(__name__).warning("Skipping ticker %s: %s", ticker, _feed_err)
                 continue
 
         cerebro.addstrategy(
@@ -178,16 +183,19 @@ class BacktraderAdapter(BacktestEngine):
         try:
             spy = yf.download("SPY", start=start_date, end=end_date, auto_adjust=True, progress=False)
             if not spy.empty:
+                if isinstance(spy.columns, pd.MultiIndex):
+                    spy.columns = [col[0] for col in spy.columns]
                 close_vals = spy["Close"].squeeze()
-            if hasattr(close_vals, "iloc"):
-                benchmark_ret = float((close_vals.iloc[-1] / close_vals.iloc[0]) - 1)
-            else:
-                benchmark_ret = float((close_vals[-1] / close_vals[0]) - 1)
-        except Exception:
-            pass
+                if hasattr(close_vals, "iloc") and len(close_vals) > 1 and close_vals.iloc[0] != 0:
+                    benchmark_ret = float((close_vals.iloc[-1] / close_vals.iloc[0]) - 1)
+        except Exception as _bench_err:
+            import logging
+            logging.getLogger(__name__).warning("SPY benchmark fetch failed: %s", _bench_err)
 
         excess = total_ret - benchmark_ret
-        calmar = abs(total_ret / (mdd / 100)) if mdd else 0.0
+        # mdd from backtrader DrawDown is already a % (e.g. 5.2 means 5.2%); convert to decimal
+        mdd_dec = mdd / 100 if mdd else 0.0
+        calmar = abs(total_ret / mdd_dec) if mdd_dec else 0.0
 
         return BacktestMetrics(
             total_return_pct=round(total_ret * 100, 2),
