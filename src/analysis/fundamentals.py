@@ -7,11 +7,9 @@ Used in Phase 4 to give Claude grounded financial evidence before
 it makes a BUY/SELL recommendation.
 """
 import asyncio
-import json
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 import httpx
 from dotenv import load_dotenv

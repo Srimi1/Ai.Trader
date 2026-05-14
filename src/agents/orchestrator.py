@@ -54,7 +54,7 @@ def run(
     deep_analysis: bool = False,
     deep_mode: str = "both",
 ) -> None:
-    console.print(f"\n[bold cyan]Political Trades AI Agent[/bold cyan] — US Markets\n")
+    console.print("\n[bold cyan]Political Trades AI Agent[/bold cyan] — US Markets\n")
 
     # 1. Ingest
     console.print("[1/5] Fetching congressional disclosures...")
@@ -121,25 +121,23 @@ def run(
             console.print("[dim]--dry-run: skipping backtest[/dim]")
         return
 
-    # 5. Pre-fetch WorldMonitor context once (shared across all trade decisions)
-    console.print("[5/5] Getting Claude recommendations with WorldMonitor context...\n")
+    # 5. Pre-fetch geo + macro context (geo_context.py — Python 3.9, no mcp dep)
+    console.print("[5/5] Getting Claude recommendations with geo/macro context...\n")
     try:
-        from src.mcp.worldmonitor_finance import get_worldmonitor_market_context, get_geopolitical_risk_score
-        import asyncio, json as _json
-
-        async def _prefetch_wm(tickers):
-            market = await get_worldmonitor_market_context()
-            scores = {}
-            for t in set(tickers):
-                scores[t] = _json.loads(await get_geopolitical_risk_score(t))
-            return _json.loads(market), scores
-
-        _tickers = [t.get("ticker", "") for t in top]
-        _market_ctx, _geo_scores = asyncio.run(_prefetch_wm(_tickers))
-        _wm_cache = {t: {"geo_risk": _geo_scores.get(t, {}), "market": _market_ctx} for t in _tickers}
-        console.print(f"      WorldMonitor: market risk {_market_ctx.get('overall_market_risk_score', 'N/A')}/10 | {_market_ctx.get('overall_assessment', '')}")
+        from src.analysis.geo_context import get_geo_risk, get_macro_snapshot
+        _macro = get_macro_snapshot()
+        _geo_scores = {t.get("ticker", ""): get_geo_risk(t.get("ticker", "")) for t in top}
+        _wm_cache = {
+            t.get("ticker", ""): {"geo_risk": _geo_scores[t.get("ticker", "")], "market": _macro}
+            for t in top
+        }
+        vix_val = _macro.get("vix", {}).get("value")
+        console.print(
+            f"      VIX={vix_val} | regime={_macro.get('market_regime', 'unknown')} "
+            f"| multiplier={_macro.get('vix_risk_multiplier', 1.0)}"
+        )
     except Exception as _wm_err:
-        console.print(f"      [dim]WorldMonitor context unavailable: {_wm_err}[/dim]")
+        console.print(f"      [dim]Geo/macro context unavailable: {_wm_err}[/dim]")
         _wm_cache = {}
 
     # Init journal + Alpaca (if executing)
@@ -175,17 +173,23 @@ def run(
         if wm_ctx and wm_ctx.get("geo_risk"):
             trade["_geo_risk_score"] = wm_ctx["geo_risk"].get("risk_score")
 
-        # Phase 4: fetch fundamentals (income, balance sheet, SEC filings)
+        # Phase 4: fetch fundamentals + technical signals
         fundamentals = ""
+        technicals = ""
         if not dry_run:
             try:
                 fundamentals = get_fundamentals_context(ticker)
-                if fundamentals:
-                    console.print(f"      [dim]{ticker}: fundamentals loaded[/dim]")
-            except Exception as _fe:
-                console.print(f"      [dim]{ticker}: fundamentals unavailable ({_fe})[/dim]")
+            except Exception:
+                pass
+            try:
+                from src.ingestion.massive import get_technical_context
+                technicals = get_technical_context(ticker)
+                if technicals:
+                    console.print(f"      [dim]{ticker}: RSI/MACD loaded[/dim]")
+            except Exception:
+                pass
 
-        result = get_recommendation(trade, wm_context=wm_ctx, fundamentals=fundamentals)
+        result = get_recommendation(trade, wm_context=wm_ctx, fundamentals=fundamentals, technicals=technicals)
         parsed = parse_recommendation(result["raw"])
 
         rec = parsed.get("RECOMMENDATION", "HOLD")

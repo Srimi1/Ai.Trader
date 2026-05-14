@@ -1,6 +1,4 @@
 """Claude-powered decision agent: takes scored + sentiment-enriched trade → BUY/HOLD/SELL."""
-import asyncio
-import json
 import logging
 import os
 from pathlib import Path
@@ -80,41 +78,18 @@ WRITING STYLE: Direct. Skeptical tone. Short sentences. No buzzwords."""
 
 def _fetch_wm_context(ticker: str) -> dict:
     """
-    Fetch WorldMonitor Finance geopolitical + macro context for a ticker.
-    Runs async tools synchronously. Returns empty dict on any failure.
+    Fetch geopolitical + macro context for a ticker.
+    Uses geo_context.py (Python 3.9 compatible, no mcp dep, sync).
     """
     try:
-        import sys
-        sys.path.insert(0, str(Path(__file__).parents[2]))
-        from src.mcp.worldmonitor_finance import (
-            get_geopolitical_risk_score,
-            get_worldmonitor_market_context,
-        )
-
-        async def _fetch():
-            geo = await get_geopolitical_risk_score(ticker)
-            market = await get_worldmonitor_market_context()
-            return json.loads(geo), json.loads(market)
-
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    future = pool.submit(asyncio.run, _fetch())
-                    geo_data, market_data = future.result(timeout=15)
-            else:
-                geo_data, market_data = asyncio.run(_fetch())
-        except Exception as e:
-            logger.warning("WorldMonitor context fetch failed: %s", e)
-            return {}
-
-        return {"geo_risk": geo_data, "market": market_data}
-    except ImportError:
+        from src.analysis.geo_context import get_context_for_ticker
+        return get_context_for_ticker(ticker)
+    except Exception as e:
+        logger.warning("geo_context fetch failed: %s", e)
         return {}
 
 
-def get_recommendation(trade: dict, wm_context: dict = None, fundamentals: str = "") -> dict:
+def get_recommendation(trade: dict, wm_context: dict = None, fundamentals: str = "", technicals: str = "") -> dict:
     """
     Args:
         trade: Enriched trade dict from the pipeline.
@@ -170,8 +145,8 @@ Score Components:
   - Recency weight: {components.get('recency', 1.0):.2f}
   - Cluster bonus: {components.get('cluster', 1.0):.2f}
 
-News Sentiment: {sentiment.get('label', 'Unknown')} (score={sentiment.get('score', 0):.3f}, n={sentiment.get('articles', 0)} articles)
-{geo_block}{market_block}{fundamentals}
+News Sentiment: {sentiment.get('label', 'Unknown')} (score={sentiment.get('score', 0):.3f}, n={sentiment.get('articles', 0)} articles, source={sentiment.get('source', 'unknown')})
+{geo_block}{market_block}{technicals}{fundamentals}
 
 Provide your recommendation."""
 
