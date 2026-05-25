@@ -9,8 +9,7 @@
     },
     "worldmonitor-finance": {
       "command": ".venv-mcp/bin/python3",
-      "args": ["-m", "src.mcp.worldmonitor_finance"],
-      "cwd": "/Volumes/Srimi Drive 1/AI.Trader"
+      "args": ["-m", "src.mcp.worldmonitor_finance"]
     },
     "financial-datasets": {
       "type": "http",
