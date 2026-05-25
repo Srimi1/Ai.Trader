@@ -208,7 +208,7 @@ class Journal:
         with self._conn() as conn:
             conn.execute(
                 "UPDATE trades SET status='skipped', risk_note=? "
-                "WHERE ticker=? AND status='logged' ORDER BY id DESC LIMIT 1",
+                "WHERE id = (SELECT id FROM trades WHERE ticker=? AND status='logged' ORDER BY id DESC LIMIT 1)",
                 (reason, ticker.upper()),
             )
 

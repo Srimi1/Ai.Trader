@@ -176,7 +176,8 @@ class BacktraderAdapter(BacktestEngine):
             gross_won = trades.get("won", {}).get("pnl", {}).get("total", 0)
             gross_lost = abs(trades.get("lost", {}).get("pnl", {}).get("total", 0))
             profit_factor = gross_won / gross_lost if gross_lost else 0.0
-            avg_ret = trades.get("pnl", {}).get("net", {}).get("average", 0)
+            avg_pnl = trades.get("pnl", {}).get("net", {}).get("average", 0)
+            avg_ret = avg_pnl / initial_cash * 100 if initial_cash else 0.0
 
         # Simplified benchmark
         benchmark_ret = 0.0

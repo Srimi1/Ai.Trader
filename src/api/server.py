@@ -13,7 +13,6 @@ Endpoints:
   POST /portfolio  (body: {"holdings": [...]})
   GET  /signal/{ticker}
 """
-import asyncio
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -121,11 +120,11 @@ def scan_ultra(days: int = 7):
 
 
 @app.get("/scan/short")
-def scan_short(days: int = 30, window: int = 15):
+async def scan_short(days: int = 30, window: int = 15):
     """Short-term geo-conviction plays (10-15 day hold)."""
     try:
         scanner = _geo_scanner()
-        data = asyncio.run(scanner(days=days, window_days=window))
+        data = await scanner(days=days, window_days=window)
         return {"ok": True, "strategy": "short", "days": days, "window": window, "count": len(data), "data": data}
     except Exception as e:
         return {"ok": False, "error": str(e), "data": []}
@@ -169,7 +168,7 @@ def save_portfolio(body: PortfolioBody):
     """Persist portfolio holdings to local cache."""
     try:
         from src.portfolio.tickertape import save_portfolio as _save
-        holdings = [h.dict() for h in body.holdings]
+        holdings = [h.model_dump() for h in body.holdings]
         _save(holdings)
         return {"ok": True, "saved": len(holdings)}
     except Exception as e:

@@ -47,7 +47,8 @@ def rolling_walkforward(
     current = min_date + timedelta(days=train_days)
 
     while current + timedelta(days=test_days) <= max_date:
-        train_start = min_date.strftime("%Y-%m-%d")
+        train_start_dt = current - timedelta(days=train_days)
+        train_start = max(min_date, train_start_dt).strftime("%Y-%m-%d")
         train_end = current.strftime("%Y-%m-%d")
         test_start = current.strftime("%Y-%m-%d")
         test_end = (current + timedelta(days=test_days)).strftime("%Y-%m-%d")

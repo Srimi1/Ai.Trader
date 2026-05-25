@@ -98,7 +98,7 @@ def get_recommendation(trade: dict, wm_context: dict = None, fundamentals: str =
         fundamentals: Pre-fetched fundamentals block from get_fundamentals_context() (optional).
         grok_context: Pre-fetched X/social intelligence block from xsocial.py (optional).
     """
-    client = anthropic.Anthropic(api_key=_API_KEY)
+    client = anthropic.Anthropic(api_key=_API_KEY, timeout=30.0)
 
     sentiment = trade.get("sentiment", {})
     components = trade.get("score_components", {})
@@ -157,7 +157,6 @@ Provide your recommendation."""
             max_tokens=400,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_msg}],
-            timeout=30.0,
         )
     except anthropic.APIError as e:
         logger.error("Anthropic API error for %s: %s", trade.get("ticker"), e)
@@ -182,7 +181,7 @@ def get_deep_analysis(trade: dict, fundamentals: str = "", mode: str = "both") -
     Returns:
         {"ticker": str, "lynch_pitch": str|None, "munger_invert": str|None}
     """
-    client = anthropic.Anthropic(api_key=_API_KEY)
+    client = anthropic.Anthropic(api_key=_API_KEY, timeout=45.0)
     ticker = trade.get("ticker", "N/A")
 
     context_block = f"""Signal Inputs:
@@ -203,7 +202,6 @@ def get_deep_analysis(trade: dict, fundamentals: str = "", mode: str = "both") -
                 model="claude-sonnet-4-6",
                 max_tokens=600,
                 messages=[{"role": "user", "content": LYNCH_PITCH_PROMPT.format(ticker=ticker) + f"\n\n{context_block}"}],
-                timeout=45.0,
             )
             result["lynch_pitch"] = msg.content[0].text if msg.content else ""
         except Exception as e:
@@ -215,7 +213,6 @@ def get_deep_analysis(trade: dict, fundamentals: str = "", mode: str = "both") -
                 model="claude-sonnet-4-6",
                 max_tokens=600,
                 messages=[{"role": "user", "content": MUNGER_INVERT_PROMPT.format(ticker=ticker) + f"\n\n{context_block}"}],
-                timeout=45.0,
             )
             result["munger_invert"] = msg.content[0].text if msg.content else ""
         except Exception as e:

@@ -195,7 +195,7 @@ class VectorBTAdapter(BacktestEngine):
             spy_ret = spy_ret.reindex(port_ret.index)
             if len(port_ret) > 10:
                 cov = np.cov(port_ret, spy_ret)[0, 1]
-                spy_var = np.var(spy_ret)
+                spy_var = np.var(spy_ret, ddof=1)
                 beta = float(cov / spy_var) if spy_var != 0 else 0.0
                 alpha = float(port_ret.mean() - beta * spy_ret.mean()) * 252
 

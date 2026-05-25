@@ -96,7 +96,17 @@ def get_fundamentals_context(ticker: str) -> str:
     Returns empty string on any failure (non-blocking).
     """
     try:
-        raw = asyncio.run(_fetch_all(ticker))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(1) as pool:
+                raw = pool.submit(asyncio.run, _fetch_all(ticker)).result(timeout=20)
+        else:
+            raw = asyncio.run(_fetch_all(ticker))
     except Exception as e:
         logger.warning("Fundamentals fetch failed for %s: %s", ticker, e)
         return ""
