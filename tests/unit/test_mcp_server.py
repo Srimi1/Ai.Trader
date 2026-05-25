@@ -72,8 +72,8 @@ class TestMCPToolLogic:
         mock_data = {"filings": [{"type": "10-K", "ticker": "AAPL"}]}
         with patch("src.mcp.financial_datasets._get", new=AsyncMock(return_value=mock_data)) as mock_get:
             result = await get_sec_filings("AAPL", filing_type="10-K")
-        url_called = mock_get.call_args[0][0]
-        assert "filing_type=10-K" in url_called
+        params_called = mock_get.call_args[0][1]
+        assert params_called["filing_type"] == "10-K"
 
     @pytest.mark.asyncio
     async def test_sec_filings_no_type_no_filter_param(self):
