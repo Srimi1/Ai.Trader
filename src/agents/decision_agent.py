@@ -33,6 +33,10 @@ CITATION RULES (apply inside REASONING and RISK_NOTE):
 - Mark inferences: (inferred from [source]).
 - Flag stale signals: (Note: recency_weight=X — trade aged X days.)
 
+TRACK RECORD: When a "Track Record" block is provided, it is your own measured
+historical performance. Weight it: trust signal sources that have beaten SPY and
+discount sources that have lagged. Cite it as [Track Record] when it influences you.
+
 Inputs you will receive per trade:
 - Politician name, ticker, trade type, amount range, transaction/disclosure dates
 - Signal score + score components (politician weight, amount weight, recency weight, cluster bonus)
@@ -90,13 +94,16 @@ def _fetch_wm_context(ticker: str) -> dict:
         return {}
 
 
-def get_recommendation(trade: dict, wm_context: dict = None, fundamentals: str = "", technicals: str = "", grok_context: str = "") -> dict:
+def get_recommendation(trade: dict, wm_context: dict = None, fundamentals: str = "", technicals: str = "", grok_context: str = "", track_record: str = "") -> dict:
     """
     Args:
         trade: Enriched trade dict from the pipeline.
         wm_context: Pre-fetched WorldMonitor context dict (optional).
         fundamentals: Pre-fetched fundamentals block from get_fundamentals_context() (optional).
         grok_context: Pre-fetched X/social intelligence block from xsocial.py (optional).
+        track_record: Pre-fetched measured-performance block from Journal.track_record()
+            (optional). Closes the feedback loop — lets Claude weight signal sources by
+            their historical edge vs SPY.
     """
     client = anthropic.Anthropic(api_key=_API_KEY, timeout=30.0)
 
@@ -149,6 +156,7 @@ Score Components:
 
 News Sentiment: {sentiment.get('label', 'Unknown')} (score={sentiment.get('score', 0):.3f}, n={sentiment.get('articles', 0)} articles, source={sentiment.get('source', 'unknown')})
 {geo_block}{market_block}{technicals}{fundamentals}{grok_context}
+{(chr(10) + track_record + chr(10)) if track_record else ''}
 Provide your recommendation."""
 
     try:

@@ -203,3 +203,22 @@ def signal_for_ticker(ticker: str):
         }
     except Exception as e:
         return {"ok": False, "ticker": ticker, "error": str(e), "trades": []}
+
+
+@app.get("/performance")
+def performance(horizon: int = 30):
+    """
+    Closed-loop performance: overall journal P&L summary plus per-source
+    attribution (win rate + excess-vs-SPY) over the given outcome horizon.
+    """
+    try:
+        from src.portfolio.journal import Journal
+        from src.portfolio.scorecard import Scorecard
+        return {
+            "ok": True,
+            "horizon_days": horizon,
+            "summary": Journal().summary(),
+            "attribution": Scorecard().attribution(horizon_days=horizon),
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}

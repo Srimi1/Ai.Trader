@@ -6,6 +6,9 @@ Tracks all signals and executed trades:
   - Records entry/exit price, P&L, hold duration
   - Provides summary stats: win rate, avg return, Sharpe
 
+The closed-loop feedback layer (outcome scoring, attribution, track record)
+lives in src/portfolio/scorecard.py, which reads the signals logged here.
+
 DB location: data/journal/trades.db
 """
 import logging
@@ -36,6 +39,7 @@ CREATE TABLE IF NOT EXISTS trades (
     representative      TEXT,
     amount_range        TEXT,
     transaction_date    TEXT,
+    sentiment_source    TEXT,                    -- grok_x / massive / alpha_vantage / unknown
     -- execution
     executed            INTEGER DEFAULT 0,       -- 1 = order placed
     order_id            TEXT,
@@ -72,6 +76,15 @@ class Journal:
     def _init_db(self) -> None:
         with self._conn() as conn:
             conn.executescript(_SCHEMA)
+            self._migrate(conn)
+
+    @staticmethod
+    def _migrate(conn: sqlite3.Connection) -> None:
+        """Additive migrations for DBs created before newer columns existed."""
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(trades)").fetchall()}
+        if "sentiment_source" not in cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN sentiment_source TEXT")
+            logger.info("Journal: migrated — added trades.sentiment_source")
 
     # ── write ──────────────────────────────────────────────────────────────────
 
@@ -108,14 +121,14 @@ class Journal:
                     ticker, signal, recommendation, confidence,
                     score, macro_score, geo_risk_score, position_size_pct,
                     stop_loss, take_profit, reasoning, risk_note,
-                    representative, amount_range, transaction_date,
+                    representative, amount_range, transaction_date, sentiment_source,
                     executed, order_id, entry_date, entry_price, qty,
                     status, source
                 ) VALUES (
                     ?, ?, ?, ?,
                     ?, ?, ?, ?,
                     ?, ?, ?, ?,
-                    ?, ?, ?,
+                    ?, ?, ?, ?,
                     ?, ?, ?, ?, ?,
                     ?, ?
                 )
@@ -136,6 +149,7 @@ class Journal:
                     trade.get("representative", ""),
                     trade.get("amount_range", ""),
                     trade.get("transaction_date", ""),
+                    (trade.get("sentiment") or {}).get("source", "unknown"),
                     executed,
                     order.get("order_id") if order else None,
                     order.get("entry_date", datetime.now().strftime("%Y-%m-%d")) if order else None,
@@ -264,6 +278,7 @@ class Journal:
             "worst_trade_pct": round(min(pnls), 2),
             "avg_hold_days": round(sum(hold_days) / len(hold_days), 1) if hold_days else None,
         }
+
 
 
 if __name__ == "__main__":
