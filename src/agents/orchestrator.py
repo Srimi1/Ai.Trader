@@ -144,6 +144,17 @@ def run(
     from src.portfolio.journal import Journal
     journal = Journal()
 
+    # Closed-loop learning: feed the agent its own measured track record vs SPY.
+    from src.portfolio.scorecard import Scorecard
+    scorecard = Scorecard()
+    _track_record = ""
+    try:
+        _track_record = scorecard.track_record(horizon_days=hold_days)
+        if _track_record:
+            console.print("      [dim]Track record loaded — feeding past performance to agent[/dim]")
+    except Exception as _tr_err:
+        console.print(f"      [dim]Track record unavailable: {_tr_err}[/dim]")
+
     alpaca_available = False
     if execute:
         try:
@@ -208,7 +219,16 @@ def run(
             except Exception:
                 pass
 
-        result = get_recommendation(trade, wm_context=wm_ctx, fundamentals=fundamentals, technicals=technicals, grok_context=grok_context)
+        # Ticker-specific track record overlays the global summary, when available.
+        ticker_tr = _track_record
+        try:
+            _tt = scorecard.track_record(ticker=ticker, horizon_days=hold_days)
+            if _tt:
+                ticker_tr = _tt
+        except Exception:
+            pass
+
+        result = get_recommendation(trade, wm_context=wm_ctx, fundamentals=fundamentals, technicals=technicals, grok_context=grok_context, track_record=ticker_tr)
         parsed = parse_recommendation(result["raw"])
 
         rec = parsed.get("RECOMMENDATION", "HOLD")
@@ -319,6 +339,55 @@ def run(
         console.print(f"\n[dim]Report saved → {report_path}[/dim]")
 
 
+def score_outcomes(horizon_days: int = 30) -> None:
+    """
+    Closed-loop scorer: re-price matured BUY/SELL signals vs SPY, then print the
+    per-source attribution so you can see which signal stream produced alpha.
+    """
+    from src.portfolio.scorecard import Scorecard
+
+    scorecard = Scorecard()
+    console.print(f"\n[bold cyan]Scoring signal outcomes — {horizon_days}d horizon[/bold cyan]\n")
+    result = scorecard.score_outcomes(horizon_days=horizon_days)
+    console.print(
+        f"  Scored {result['scored']} new outcome(s): "
+        f"[green]{result['wins']} win[/green] / [red]{result['losses']} loss[/red] "
+        f"({result['skipped_no_price']} skipped — price unavailable)\n"
+    )
+
+    attr = scorecard.attribution(horizon_days=horizon_days)
+    if not attr["scored_signals"]:
+        console.print("[dim]No scored signals yet — let some signals mature past the horizon first.[/dim]")
+        return
+
+    for dim, title in (("by_source", "Sentiment Source"),
+                       ("by_confidence", "Confidence"),
+                       ("by_recommendation", "Recommendation")):
+        buckets = attr.get(dim, [])
+        if not buckets:
+            continue
+        tbl = Table(title=f"Attribution — {title} ({attr['scored_signals']} signals)", show_lines=False)
+        tbl.add_column("Bucket", style="bold")
+        tbl.add_column("N", justify="right")
+        tbl.add_column("Win %", justify="right")
+        tbl.add_column("Avg Return", justify="right")
+        tbl.add_column("Avg vs SPY", justify="right")
+        tbl.add_column("Beat SPY %", justify="right")
+        for b in buckets:
+            excess = b["avg_excess_pct"]
+            excess_color = "green" if (excess or 0) > 0 else "red"
+            tbl.add_row(
+                str(b["bucket"]),
+                str(b["n"]),
+                f"{b['win_rate_pct']:.0f}%" if b["win_rate_pct"] is not None else "—",
+                f"{b['avg_return_pct']:+.2f}%" if b["avg_return_pct"] is not None else "—",
+                f"[{excess_color}]{excess:+.2f}%[/{excess_color}]" if excess is not None else "—",
+                f"{b['beat_spy_pct']:.0f}%" if b["beat_spy_pct"] is not None else "—",
+            )
+        console.print(tbl)
+        console.print()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--days", type=int, default=90)
@@ -331,7 +400,15 @@ if __name__ == "__main__":
     parser.add_argument("--engine", type=str, default="vectorbt", choices=list(ENGINE_MAP.keys()))
     parser.add_argument("--hold-days", type=int, default=30)
     parser.add_argument("--cash", type=float, default=100_000.0)
+    parser.add_argument("--score-outcomes", action="store_true",
+                        help="Closed loop: re-price matured signals vs SPY + show attribution, then exit")
+    parser.add_argument("--horizon", type=int, default=30,
+                        help="Outcome-scoring horizon in days (used with --score-outcomes)")
     args = parser.parse_args()
+
+    if args.score_outcomes:
+        score_outcomes(horizon_days=args.horizon)
+        sys.exit(0)
 
     run(
         days=args.days,

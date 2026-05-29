@@ -8,6 +8,7 @@ Usage:
   python scripts/daily_run.py                    # score + Claude, no execution
   python scripts/daily_run.py --execute          # paper trade via Alpaca
   python scripts/daily_run.py --close-exits      # close positions past hold_days
+  python scripts/daily_run.py --score-outcomes   # score matured signals vs SPY + attribution
   python scripts/daily_run.py --status           # show portfolio status only
 
 Cron setup (edit with: crontab -e):
@@ -83,6 +84,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="AI.Trader daily pipeline runner")
     parser.add_argument("--execute", action="store_true", help="Execute paper trades via Alpaca")
     parser.add_argument("--close-exits", action="store_true", help="Close positions past hold_days")
+    parser.add_argument("--score-outcomes", action="store_true", help="Score matured signals vs SPY + show attribution")
+    parser.add_argument("--horizon", type=int, default=30, help="Outcome-scoring horizon in days")
     parser.add_argument("--hold-days", type=int, default=30, help="Max hold days before auto-close")
     parser.add_argument("--days", type=int, default=90, help="Lookback days for congressional trades")
     parser.add_argument("--top", type=int, default=5, help="Max signals to act on per run")
@@ -99,6 +102,13 @@ def main() -> None:
     if args.status:
         from src.monitoring.status import print_status
         print_status()
+        return
+
+    # Score matured signal outcomes vs SPY (closed-loop learning; good EOD/weekly job)
+    if args.score_outcomes:
+        logger.info("Scoring signal outcomes (horizon=%d)", args.horizon)
+        from src.agents.orchestrator import score_outcomes
+        score_outcomes(horizon_days=args.horizon)
         return
 
     # Close expired positions (end-of-day job)
